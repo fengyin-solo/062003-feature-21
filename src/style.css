@@ -14,6 +14,7 @@
   --danger: #e74c3c;
   --danger-soft: #fdecea;
   --warning: #f39c12;
+  --warning-soft: #fef5e7;
   --shadow: 0 4px 20px rgba(100, 60, 140, 0.1);
 }
 
@@ -32,6 +33,7 @@
   --danger: #f87171;
   --danger-soft: #301a1a;
   --warning: #fbbf24;
+  --warning-soft: #2d2410;
   --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 

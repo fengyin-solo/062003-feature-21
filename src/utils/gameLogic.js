@@ -555,3 +555,163 @@ export function getRatingResults(state) {
     }))
     .sort((a, b) => b.score - a.score)
 }
+
+export function calcScheduleCost(schedule, trainees) {
+  let total = 0
+  for (const [traineeId, activityKey] of Object.entries(schedule)) {
+    const trainee = trainees.find((t) => t.id === traineeId)
+    if (!trainee || trainee.illnessDays > 0 || trainee.status === 'left') continue
+    const activity = CFG.activities[activityKey]
+    if (activity) total += activity.moneyCost
+  }
+  return total
+}
+
+export function calcDailyOperatingCost(state) {
+  const trainees = getActiveTrainees(state)
+  return (
+    CFG.dailyCosts.baseOperatingCost +
+    trainees.filter((t) => t.status === 'trainee').length * CFG.dailyCosts.perTraineeCost +
+    trainees.filter((t) => t.status === 'debuted').length * CFG.dailyCosts.perDebutedCost +
+    state.groups.length * CFG.dailyCosts.perGroupCost
+  )
+}
+
+export function calcBudgetStatus(state, schedule) {
+  const scheduleCost = calcScheduleCost(schedule, state.trainees)
+  const operatingCost = calcDailyOperatingCost(state)
+  const totalCost = scheduleCost + operatingCost
+  const moneyAfter = state.money - totalCost
+  const ratio = state.money > 0 ? totalCost / state.money : 1
+  let level = 'safe'
+  let message = ''
+  if (ratio >= CFG.budgetWarning.dangerRatio || moneyAfter < 0) {
+    level = 'danger'
+    message = moneyAfter < 0 ? '今日支出将导致资金为负！' : `今日支出占资金 ${Math.round(ratio * 100)}%，请谨慎！`
+  } else if (ratio >= CFG.budgetWarning.warnRatio) {
+    level = 'warn'
+    message = `今日支出占资金 ${Math.round(ratio * 100)}%，注意控制预算`
+  }
+  return { scheduleCost, operatingCost, totalCost, moneyAfter, ratio, level, message }
+}
+
+export function calcEstimatedDailyBurn(state) {
+  const active = getActiveTrainees(state).filter((t) => t.illnessDays === 0)
+  const avgActivityCost = Object.values(CFG.activities).reduce((s, a) => s + a.moneyCost, 0) / Object.keys(CFG.activities).length
+  return calcDailyOperatingCost(state) + active.length * avgActivityCost
+}
+
+export function applyTemplate(templateKey, trainees, currentStats) {
+  const template = CFG.templates[templateKey]
+  if (!template) return {}
+  const schedulable = trainees.filter((t) => t.status !== 'left' && t.illnessDays === 0)
+  const schedule = {}
+
+  if (template.activity) {
+    for (const t of schedulable) {
+      schedule[t.id] = template.activity
+    }
+  } else if (template.strategy === 'auto_balanced') {
+    for (const t of schedulable) {
+      const stats = currentStats?.[t.id] || t.stats
+      const sortedStats = [...CFG.stats].sort((a, b) => stats[a] - stats[b])
+      const weakest = sortedStats[0]
+      if (CFG.activities[weakest]) {
+        schedule[t.id] = weakest
+      } else {
+        schedule[t.id] = 'physical'
+      }
+    }
+  } else if (template.strategy === 'half_rest') {
+    const sortedByFatigue = [...schedulable].sort((a, b) => b.fatigue - a.fatigue)
+    const halfCount = Math.ceil(sortedByFatigue.length / 2)
+    sortedByFatigue.forEach((t, i) => {
+      if (i < halfCount) {
+        schedule[t.id] = 'rest'
+      } else {
+        const stats = currentStats?.[t.id] || t.stats
+        const sortedStats = [...CFG.stats].sort((a, b) => stats[a] - stats[b])
+        const weakest = sortedStats[0]
+        schedule[t.id] = CFG.activities[weakest] ? weakest : 'vocal'
+      }
+    })
+  }
+
+  return schedule
+}
+
+export function buildDailyReview(prevState, newState) {
+  const review = {
+    day: prevState.day,
+    moneyChange: newState.money - prevState.money,
+    fansChange: newState.fans - prevState.fans,
+    traineeChanges: [],
+    activitiesBreakdown: {},
+    highlights: [],
+    warnings: [],
+  }
+
+  const prevSchedule = prevState.schedule
+  for (const [tid, activityKey] of Object.entries(prevSchedule)) {
+    if (!review.activitiesBreakdown[activityKey]) {
+      review.activitiesBreakdown[activityKey] = 0
+    }
+    review.activitiesBreakdown[activityKey]++
+  }
+
+  for (const newT of newState.trainees) {
+    const prevT = prevState.trainees.find((t) => t.id === newT.id)
+    if (!prevT || newT.status === 'left') continue
+
+    const statChanges = {}
+    for (const key of CFG.stats) {
+      const diff = newT.stats[key] - prevT.stats[key]
+      if (diff !== 0) statChanges[key] = diff
+    }
+
+    const change = {
+      id: newT.id,
+      name: newT.name,
+      activity: prevSchedule[newT.id] || null,
+      statChanges,
+      fatigueChange: newT.fatigue - prevT.fatigue,
+      stressChange: newT.stress - prevT.stress,
+      fansChange: newT.fans - prevT.fans,
+      illnessDays: newT.illnessDays,
+    }
+    review.traineeChanges.push(change)
+
+    const maxStatGain = Math.max(...Object.values(statChanges), 0)
+    if (maxStatGain >= 6) {
+      const topStat = Object.entries(statChanges).find(([, v]) => v === maxStatGain)
+      if (topStat) {
+        review.highlights.push({
+          type: 'stat_gain',
+          trainee: newT.name,
+          stat: CFG.statLabels[topStat[0]],
+          value: topStat[1],
+        })
+      }
+    }
+
+    if (newT.fatigue >= CFG.thresholds.fatigueExhausted) {
+      review.warnings.push({
+        type: 'fatigue',
+        trainee: newT.name,
+        value: newT.fatigue,
+      })
+    }
+    if (newT.stress >= CFG.thresholds.stressHigh) {
+      review.warnings.push({
+        type: 'stress',
+        trainee: newT.name,
+        value: newT.stress,
+      })
+    }
+  }
+
+  const dayLogs = newState.logs.filter((l) => l.day === prevState.day)
+  review.events = dayLogs.filter((l) => l.text.includes('【'))
+
+  return review
+}

@@ -10,6 +10,10 @@ import {
   calcProfit,
   calcTraineeScore,
   getRelationship,
+  applyTemplate,
+  calcBudgetStatus,
+  calcEstimatedDailyBurn,
+  buildDailyReview,
 } from '../utils/gameLogic'
 import { saveToSlot } from '../utils/storage'
 
@@ -17,6 +21,7 @@ export function useGame() {
   const state = ref(null)
   const currentSlot = ref(null)
   const screen = ref('menu') // menu | game
+  const latestReview = ref(null)
 
   const profit = computed(() => (state.value ? calcProfit(state.value) : 0))
   const daysLeft = computed(() =>
@@ -58,16 +63,42 @@ export function useGame() {
     state.value.schedule = {}
   }
 
+  function applyTemplateToSchedule(templateKey) {
+    if (!state.value) return
+    const newSchedule = applyTemplate(
+      templateKey,
+      state.value.trainees,
+      {}
+    )
+    state.value.schedule = { ...state.value.schedule, ...newSchedule }
+  }
+
   function canEndDay() {
     if (!state.value) return false
     const active = activeTrainees.value.filter((t) => t.illnessDays === 0)
     return active.every((t) => state.value.schedule[t.id])
   }
 
+  function getBudgetStatus() {
+    if (!state.value) return null
+    return calcBudgetStatus(state.value, state.value.schedule)
+  }
+
+  function getEstimatedBurn() {
+    if (!state.value) return 0
+    return calcEstimatedDailyBurn(state.value)
+  }
+
   function endDay() {
     if (!state.value || !canEndDay()) return
+    const prevState = JSON.parse(JSON.stringify(state.value))
     state.value = processDay(state.value)
+    latestReview.value = buildDailyReview(prevState, state.value)
     autoSave()
+  }
+
+  function dismissReview() {
+    latestReview.value = null
   }
 
   function handlePoaching(keep) {
@@ -119,12 +150,17 @@ export function useGame() {
     profit,
     daysLeft,
     activeTrainees,
+    latestReview,
     startNewGame,
     loadGame,
     setSchedule,
     clearSchedule,
+    applyTemplateToSchedule,
     canEndDay,
     endDay,
+    getBudgetStatus,
+    getEstimatedBurn,
+    dismissReview,
     handlePoaching,
     handleDebut,
     handleReleaseSingle,

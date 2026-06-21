@@ -194,6 +194,47 @@ export const GAME_CONFIG = {
     '方念慈', '宋时雨', '叶知秋', '周慕青', '赵星河',
   ],
 
+  // ── 批量训练模板 ──
+  templates: {
+    balanced: {
+      label: '均衡培养',
+      icon: '⚖️',
+      description: '每人选择自己的弱项训练',
+      strategy: 'auto_balanced',
+    },
+    all_vocal: {
+      label: '全员声乐',
+      icon: '🎤',
+      description: '全部练习生上声乐课',
+      activity: 'vocal',
+    },
+    all_dance: {
+      label: '全员舞蹈',
+      icon: '💃',
+      description: '全部练习生上舞蹈课',
+      activity: 'dance',
+    },
+    half_rest: {
+      label: '劳逸结合',
+      icon: '🌿',
+      description: '一半人训练，一半人休息',
+      strategy: 'half_rest',
+    },
+    pr_team: {
+      label: '公关出击',
+      icon: '📸',
+      description: '全员参加公关活动',
+      activity: 'pr',
+    },
+  },
+
+  // ── 预算预警阈值 ──
+  budgetWarning: {
+    dangerRatio: 0.15,
+    warnRatio: 0.35,
+    safeDays: 7,
+  },
+
   // ── 存档 ──
   storage: {
     savesKey: 'idol-agency-saves-v1',

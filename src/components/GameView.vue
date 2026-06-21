@@ -5,6 +5,7 @@
       :days-left="daysLeft"
       :profit="profit"
       :theme="theme"
+      :estimated-burn="estimatedBurn"
       @back="$emit('back')"
       @toggle-theme="$emit('toggle-theme')"
     />
@@ -26,8 +27,10 @@
           :trainees="activeTrainees"
           :schedule="state.schedule"
           :can-end="canEndDay"
+          :budget-status="budgetStatus"
           @set="(id, act) => $emit('set-schedule', id, act)"
           @clear="$emit('clear-schedule')"
+          @apply-template="(key) => $emit('apply-template', key)"
           @end-day="$emit('end-day')"
         />
         <DayLog :logs="state.logs" />
@@ -46,6 +49,12 @@
         />
       </aside>
     </div>
+
+    <DailyReview
+      v-if="latestReview"
+      :review="latestReview"
+      @close="$emit('dismiss-review')"
+    />
 
     <RatingModal
       v-if="state.pendingRating && state.gameStatus === 'playing'"
@@ -91,6 +100,7 @@ import RatingModal from './RatingModal.vue'
 import DebutModal from './DebutModal.vue'
 import EventModal from './EventModal.vue'
 import GameOverModal from './GameOverModal.vue'
+import DailyReview from './DailyReview.vue'
 
 const props = defineProps({
   state: Object,
@@ -101,6 +111,9 @@ const props = defineProps({
   canEndDay: Boolean,
   ratingResults: Array,
   calcScore: Function,
+  budgetStatus: Object,
+  estimatedBurn: Number,
+  latestReview: Object,
 })
 
 const emit = defineEmits([
@@ -108,11 +121,13 @@ const emit = defineEmits([
   'toggle-theme',
   'set-schedule',
   'clear-schedule',
+  'apply-template',
   'end-day',
   'dismiss-rating',
   'debut',
   'resolve-poaching',
   'release-single',
+  'dismiss-review',
 ])
 
 const showDebut = ref(false)

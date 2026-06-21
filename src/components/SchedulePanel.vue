@@ -3,6 +3,44 @@
     <h3>📅 今日日程安排</h3>
     <p class="hint">为每位练习生选择活动，同活动一起训练可提升默契</p>
 
+    <div class="templates-section">
+      <span class="section-label">快速模板：</span>
+      <div class="template-btns">
+        <button
+          v-for="(tpl, key) in templates"
+          :key="key"
+          class="template-btn"
+          :title="tpl.description"
+          @click="$emit('apply-template', key)"
+        >
+          <span class="tpl-icon">{{ tpl.icon }}</span>
+          <span class="tpl-label">{{ tpl.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="budgetStatus" class="budget-bar" :class="budgetStatus.level">
+      <div class="budget-info">
+        <span class="budget-label">💰 今日预算</span>
+        <span class="budget-detail">
+          训练 ¥{{ budgetStatus.scheduleCost.toLocaleString() }}
+          + 运营 ¥{{ budgetStatus.operatingCost.toLocaleString() }}
+          = <strong>¥{{ budgetStatus.totalCost.toLocaleString() }}</strong>
+        </span>
+      </div>
+      <div class="budget-remain">
+        <span v-if="budgetStatus.level === 'safe'" class="remain-safe">
+          剩余资金 ¥{{ budgetStatus.moneyAfter.toLocaleString() }}
+        </span>
+        <span v-else-if="budgetStatus.level === 'warn'" class="remain-warn">
+          ⚠️ {{ budgetStatus.message }}
+        </span>
+        <span v-else class="remain-danger">
+          🚨 {{ budgetStatus.message }}
+        </span>
+      </div>
+    </div>
+
     <div class="schedule-list">
       <div
         v-for="trainee in schedulable"
@@ -31,7 +69,7 @@
 
     <div class="legend">
       <span v-for="(act, key) in activities" :key="key" class="legend-item">
-        {{ act.icon }} {{ act.label }}
+        {{ act.icon }} {{ act.label }} ¥{{ act.moneyCost }}
       </span>
     </div>
 
@@ -53,11 +91,13 @@ const props = defineProps({
   trainees: Array,
   schedule: Object,
   canEnd: Boolean,
+  budgetStatus: Object,
 })
 
-defineEmits(['set', 'clear', 'end-day'])
+defineEmits(['set', 'clear', 'end-day', 'apply-template'])
 
 const activities = GAME_CONFIG.activities
+const templates = GAME_CONFIG.templates
 
 const schedulable = computed(() =>
   props.trainees.filter((t) => t.status !== 'left')
@@ -70,8 +110,109 @@ const schedulable = computed(() =>
 .hint {
   font-size: 0.85rem;
   color: var(--text-muted);
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
+
+.templates-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.template-btns {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.template-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.15s;
+}
+
+.template-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tpl-icon { font-size: 0.95rem; }
+.tpl-label { white-space: nowrap; }
+
+.budget-bar {
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border);
+}
+
+.budget-bar.safe {
+  background: var(--success-soft);
+  border-color: var(--success);
+}
+
+.budget-bar.warn {
+  background: #fef9e7;
+  border-color: var(--warning);
+}
+
+.budget-bar.danger {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+
+[data-theme='dark'] .budget-bar.warn {
+  background: #2d2410;
+}
+
+.budget-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.budget-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.budget-detail {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.budget-detail strong {
+  color: var(--text-primary);
+}
+
+.budget-remain {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.remain-safe { color: var(--success); }
+.remain-warn { color: var(--warning); }
+.remain-danger { color: var(--danger); }
 
 .schedule-list {
   display: flex;

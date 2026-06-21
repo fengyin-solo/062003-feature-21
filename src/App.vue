@@ -18,12 +18,17 @@
     :can-end-day="canEndDay()"
     :rating-results="getRatingResults()"
     :calc-score="calcTraineeScore"
+    :budget-status="budgetStatus"
+    :estimated-burn="estimatedBurn"
+    :latest-review="latestReview"
     @back="backToMenu"
     @toggle-theme="toggleTheme"
     @set-schedule="setSchedule"
     @clear-schedule="clearSchedule"
+    @apply-template="applyTemplateToSchedule"
     @end-day="endDay"
     @dismiss-rating="dismissRating"
+    @dismiss-review="dismissReview"
     @debut="onDebut"
     @resolve-poaching="handlePoaching"
     @release-single="onReleaseSingle"
@@ -31,7 +36,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import SaveManager from './components/SaveManager.vue'
 import GameView from './components/GameView.vue'
 import { useTheme } from './composables/useTheme'
@@ -47,12 +52,17 @@ const {
   profit,
   daysLeft,
   activeTrainees,
+  latestReview,
   startNewGame,
   loadGame,
   setSchedule,
   clearSchedule,
+  applyTemplateToSchedule,
   canEndDay,
   endDay,
+  getBudgetStatus,
+  getEstimatedBurn,
+  dismissReview,
   handlePoaching,
   handleDebut,
   handleReleaseSingle,
@@ -61,6 +71,9 @@ const {
   getRatingResults,
   calcTraineeScore,
 } = useGame()
+
+const budgetStatus = computed(() => getBudgetStatus())
+const estimatedBurn = computed(() => getEstimatedBurn())
 
 onMounted(() => {
   slots.value = loadAllSaves()

@@ -8,8 +8,15 @@
     <div class="header-stats">
       <div class="stat-item">
         <span class="label">资金</span>
-        <span class="value" :class="{ danger: state.money < 10000 }">
+        <span
+          class="value"
+          :class="{ danger: budgetLevel === 'danger', warn: budgetLevel === 'warn' }"
+          :title="budgetTooltip"
+        >
           ¥{{ state.money.toLocaleString() }}
+        </span>
+        <span v-if="estimatedBurn > 0 && state.money > 0" class="sub-label">
+          约可维持 {{ burnDays }} 天
         </span>
       </div>
       <div class="stat-item">
@@ -34,17 +41,37 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { GAME_CONFIG } from '../config/gameConfig'
 
-defineProps({
+const props = defineProps({
   state: Object,
   daysLeft: Number,
   profit: Number,
   theme: String,
+  estimatedBurn: Number,
 })
 defineEmits(['back', 'toggle-theme'])
 
 const targetGroups = GAME_CONFIG.victory.targetGroups
+
+const budgetLevel = computed(() => {
+  if (!props.estimatedBurn || props.estimatedBurn <= 0) return 'safe'
+  const ratio = props.estimatedBurn / (props.state?.money || 1)
+  if (ratio >= GAME_CONFIG.budgetWarning.dangerRatio || props.state?.money < 10000) return 'danger'
+  if (ratio >= GAME_CONFIG.budgetWarning.warnRatio || props.state?.money < 30000) return 'warn'
+  return 'safe'
+})
+
+const budgetTooltip = computed(() => {
+  if (!props.estimatedBurn) return ''
+  return `日均支出约 ¥${props.estimatedBurn.toLocaleString()}`
+})
+
+const burnDays = computed(() => {
+  if (!props.estimatedBurn || props.estimatedBurn <= 0 || props.state?.money <= 0) return 0
+  return Math.floor(props.state.money / props.estimatedBurn)
+})
 </script>
 
 <style scoped>
@@ -96,8 +123,15 @@ const targetGroups = GAME_CONFIG.victory.targetGroups
   font-size: 1rem;
 }
 
+.stat-item .sub-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
 .stat-item .value.success { color: var(--success); }
 .stat-item .value.danger { color: var(--danger); }
+.stat-item .value.warn { color: var(--warning); }
 
 .theme-btn {
   background: var(--bg-secondary);
